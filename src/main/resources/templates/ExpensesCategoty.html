@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Add Expense Category</title>
+    <link rel="stylesheet" href="/css/ExpensesCategory.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Add New Expense Category</h1>
+        </header>
+
+        <form action="/dashboard/save-expense-category" method="post">
+            <div class="form-group">
+                <label for="name">Category Name</label>
+                <input type="text" id="name" name="name"  required>
+            </div>
+
+            <button type="submit" class="btn">Save Category</button>
+        </form>
+    </div>
+</body>
+</html>

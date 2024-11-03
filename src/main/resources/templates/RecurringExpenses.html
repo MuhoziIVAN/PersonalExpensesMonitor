@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Add Recurring Expense</title>
+    <link rel="stylesheet" href="/css/RecurringExpenses.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Add New Recurring Expense</h1>
+        </header>
+
+        <form action="/dashboard/save-recurring-expense" method="post">
+            <div class="form-group">
+                <label for="description">Description</label>
+                <input type="text" id="description" name="description"  required>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Amount</label>
+                <input type="number" id="amount" name="amount"  required>
+            </div>
+
+            <div class="form-group">
+                <label for="date">Date</label>
+                <input type="date" id="date" name="date"  required>
+            </div>
+
+            <div class="form-group">
+                <label for="recurrenceDate">Recurrence Date</label>
+                <input type="date" id="recurrenceDate" name="recurrenceDate" required>
+            </div>
+
+            <button type="submit" class="btn">Save Recurring Expense</button>
+        </form>
+    </div>
+</body>
+</html>

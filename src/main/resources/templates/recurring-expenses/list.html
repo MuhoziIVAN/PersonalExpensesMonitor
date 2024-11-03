@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recurring Expenses List</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <style>
+        .head{
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mt-5">
+    <h2>Recurring Expenses List</h2>
+
+    <div class="head">
+        <a href="/user/recurring-expenses/create" class="btn btn-primary mb-5">Add New Recurring Expense</a>
+
+        <a href="#" th:href="@{/user/dashboard}">Back Home</a>
+    
+    </div>
+   
+    <!-- Search and Filter Form -->
+    <div class="form-inline mb-3">
+        <input type="text" id="searchInput" class="form-control mr-2" placeholder="Search by description" onkeyup="filterRecurringExpenses()">
+
+        <select id="categoryFilter" class="form-control mr-2" onchange="filterRecurringExpenses()">
+            <option value="">All Categories</option>
+            <option value="Daily">Daily</option>
+            <option value="Weekly">Weekly</option>
+            <option value="Monthly">Monthly</option>
+            <option value="Yearly">Yearly</option>
+        </select>
+
+        <select id="sortField" class="form-control mr-2" onchange="sortRecurringExpenses()">
+            <option value="description">Source</option>
+            <option value="amount">Amount</option>
+            <option value="createdAt">Date</option>
+        </select>
+
+        <select id="sortDirection" class="form-control mr-2" onchange="sortRecurringExpenses()">
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+        </select>
+    </div>
+
+    <!-- Recurring Expenses Table -->
+    <table class="table table-bordered" id="recurringExpensesTable">
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Type</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Next Due Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="recurringExpensesBody">
+            <!-- JavaScript will populate this with filtered, sorted, paginated expenses -->
+        </tbody>
+    </table>
+
+    <!-- Pagination Controls -->
+    <div id="pagination" class="d-flex justify-content-center mt-3">
+        <button onclick="previousPage()" class="btn btn-secondary mr-2">Previous</button>
+        <span id="pageDisplay">Page 1</span>
+        <button onclick="nextPage()" class="btn btn-secondary ml-2">Next</button>
+    </div>
+</div>
+
+<script>
+    let recurringExpenses = [];
+    let currentPage = 1;
+    const itemsPerPage = 5;
+    let filteredRecurringExpenses = [];
+
+    // Fetch recurring expenses data from the backend
+    async function fetchRecurringExpenses() {
+        try {
+            const response = await fetch('/user/recurring-expenses/api');
+            recurringExpenses = await response.json();
+            filteredRecurringExpenses = recurringExpenses.map(exp => ({
+                ...exp,
+                startDate: formatDateFromArray(exp.startDate),
+                endDate: formatDateFromArray(exp.endDate),
+                nextDueDate: formatDateFromArray(exp.nextDueDate),
+            }));
+            recurringExpenses = filteredRecurringExpenses;
+            displayRecurringExpenses();
+        } catch (error) {
+            console.error("Error fetching recurring expenses:", error);
+        }
+    }
+
+    function formatDateFromArray(dateArray) {
+        const [year, month, day, hour, minute, second, millisecond] = dateArray;
+    
+        // Ensure month is two digits by adjusting the zero-based month value
+        const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
+        return `${formattedDate}`;
+    }
+
+    // Display Recurring Expenses
+    function displayRecurringExpenses() {
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const currentRecurringExpenses = filteredRecurringExpenses.slice(start, end);
+
+        const tbody = document.getElementById('recurringExpensesBody');
+        tbody.innerHTML = '';
+
+        currentRecurringExpenses.forEach(expense => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${expense.description}</td>
+                <td>${expense.amount}</td>
+                <td>${expense.recurrenceType}</td>
+                <td>${expense.startDate}</td>
+                <td>${expense.endDate}</td>
+                <td>${expense.nextDueDate}</td>
+                <td>
+                    <a href="/user/recurring-expenses/update/${expense.id}" class="btn btn-primary">Edit</a>
+                    <a href="/user/recurring-expenses/delete/${expense.id}" class="btn btn-danger">Delete</a>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        document.getElementById('pageDisplay').innerText = `Page ${currentPage}`;
+    }
+
+    // Filter function
+    function filterRecurringExpenses() {
+        const searchInput = document.getElementById('searchInput').value.toLowerCase();
+        const categoryFilter = document.getElementById('categoryFilter').value;
+
+        filteredRecurringExpenses = recurringExpenses.filter(expense => {
+            const matchesDescription = expense.description.toLowerCase().includes(searchInput);
+            const matchesCategory = categoryFilter === '' || expense.recurrenceType === categoryFilter;
+
+            return matchesDescription && matchesCategory;
+        });
+
+        currentPage = 1; // Reset to the first page after filtering
+        displayRecurringExpenses();
+    }
+
+    // Sort function
+    function sortRecurringExpenses() {
+        const sortField = document.getElementById('sortField').value;
+        const sortDirection = document.getElementById('sortDirection').value;
+
+        filteredRecurringExpenses.sort((a, b) => {
+            const aField = a[sortField];
+            const bField = b[sortField];
+
+            if (typeof aField === 'string' && typeof bField === 'string') {
+                return sortDirection === 'asc' ? aField.localeCompare(bField) : bField.localeCompare(aField);
+            } else {
+                return sortDirection === 'asc' ? aField - bField : bField - aField;
+            }
+        });
+
+        displayRecurringExpenses();
+    }
+
+    // Pagination functions
+    function previousPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            displayRecurringExpenses();
+        }
+    }
+
+    function nextPage() {
+        if (currentPage * itemsPerPage < filteredRecurringExpenses.length) {
+            currentPage++;
+            displayRecurringExpenses();
+        }
+    }
+
+    // Initial fetch on page load
+    fetchRecurringExpenses();
+</script>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.2/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

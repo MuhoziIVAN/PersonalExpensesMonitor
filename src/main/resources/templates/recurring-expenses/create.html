@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Create Recurring Expense</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+
+<div class="container mt-5">
+    <h2>Create Recurring Expense</h2>
+
+    <form th:action="@{/user/recurring-expenses/create}" th:object="${recurringExpense}" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="description">Description</label>
+            <input type="text" id="description" class="form-control" th:field="*{description}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="amount">Amount</label>
+            <input type="number" id="amount" step="0.01" class="form-control" th:field="*{amount}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="recurrenceType">Recurrence Type</label>
+            <select id="recurrenceType" class="form-control" th:field="*{recurrenceType}" required>
+                <option value="" disabled selected>Select Recurrence Type</option>
+                <option value="Daily">Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Monthly">Monthly</option>
+                <option value="Yearly">Yearly</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="startDate">Start Date</label>
+            <input type="datetime-local" id="startDate" class="form-control" th:field="*{startDate}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="endDate">End Date</label>
+            <input type="datetime-local" id="endDate" class="form-control" th:field="*{endDate}">
+        </div>
+
+        <div class="form-group">
+            <label for="nextDueDate">Next Due Date</label>
+            <input type="datetime-local" id="nextDueDate" class="form-control" th:field="*{nextDueDate}" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Create Recurring Expense</button>
+        <a href="/user/recurring-expenses" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.2/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

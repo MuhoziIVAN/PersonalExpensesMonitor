@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Expense Category Form</title>
+    <link rel="stylesheet" href="/css/ExpensesCategory.css">
+</head>
+<body>
+    <div class="container">
+        <h1 th:text="${category.id != null} ? 'Edit Category' : 'Add New Category'"></h1>
+        <form th:action="@{${category.id != null} ? '/user/expenses-categories/' + ${category.id} : '/user/expenses-categories'}" th:object="${category}" method="post" class="expense-form">
+            <input type="hidden" th:field="*{id}" />
+            <div class="form-group">
+                <label for="categoryName">Category Name:</label>
+                <input type="text" id="categoryName" th:field="*{categoryName}" required placeholder="Enter category name" />
+            </div>
+            <div class="form-group">
+                <label for="description">Description:</label>
+                <input type="text" id="description" th:field="*{description}" placeholder="Enter description" />
+            </div>
+            <button type="submit" class="btn">Submit</button>
+            <div class="cancel-container">
+                <a href="/user/expenses-categories" class="btn cancel">Cancel</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

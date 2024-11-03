@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Expenses List</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <style>
+        .head{
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mt-5">
+    <h2>Expenses List</h2>
+<div class="head">
+    <a href="/user/expenses/create" class="btn btn-primary mb-5" >Add New Expense</a>
+
+    <a href="#" th:href="@{/user/dashboard}">Back Home</a>
+
+</div>
+   
+    <!-- Search and Filter Form -->
+    <div class="form-inline mb-3">
+        <input type="text" id="searchInput" class="form-control mr-2" placeholder="Search by description" onkeyup="filterExpenses()">
+        
+        
+
+        <select id="categoryFilter" class="form-control mr-2"onchange="filterExpenses()">
+            <option value="">All Categories</option>
+            <option th:each="category : ${categories}" th:value="${category.categoryName}" th:text="${category.categoryName}"></option>
+        </select>
+        
+
+        <select id="sortField" class="form-control mr-2" onchange="sortExpenses()">
+            <option value="description">Description</option>
+            <option value="amount">Amount</option>
+            <option value="createdAt">Date</option>
+        </select>
+
+        <select id="sortDirection" class="form-control mr-2" onchange="sortExpenses()">
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+        </select>
+    </div>
+
+    <!-- Expenses Table -->
+    <table class="table table-bordered" id="expensesTable">
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Created At</th>
+                <th>Category</th>
+                <th>File</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="expensesBody">
+            <!-- JavaScript will populate this with filtered, sorted, paginated expenses -->
+        </tbody>
+    </table>
+
+    <!-- Pagination Controls -->
+    <div id="pagination" class="d-flex justify-content-center mt-3">
+        <button onclick="previousPage()" class="btn btn-secondary mr-2">Previous</button>
+        <span id="pageDisplay">Page 1</span>
+        <button onclick="nextPage()" class="btn btn-secondary ml-2">Next</button>
+    </div>
+</div>
+
+<script>
+    let expenses = [];
+let currentPage = 1;
+const itemsPerPage = 5;
+let filteredExpenses = [];
+
+// Fetch expenses data from the backend
+async function fetchExpenses() {
+    try {
+        const response = await fetch('/user/expenses/api');
+        expenses = await response.json();
+        filteredExpenses = expenses.map(ex => ({
+            ...ex,
+            createdAt: formatDateFromArray(ex.createdAt)
+        }));
+        displayExpenses();
+    } catch (error) {
+        console.error("Error fetching expenses:", error);
+    }
+}
+
+function formatDateFromArray(dateArray) {
+    const [year, month, day, hour, minute, second, millisecond] = dateArray;
+
+    // Ensure month is two digits by adjusting the zero-based month value
+    const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    return `${formattedDate}`;
+}
+// Display Expenses
+function displayExpenses() {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    const currentExpenses = filteredExpenses.slice(start, end);
+
+    const tbody = document.getElementById('expensesBody');
+    tbody.innerHTML = '';
+
+    currentExpenses.forEach(expense => {
+        console.log(expense);
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${expense.description}</td>
+            <td>${expense.amount}</td>
+            <td>${expense.createdAt}</td>
+            <td>${expense.category.categoryName}</td>
+            <td>${expense.fileUrl ? `<a href="../${expense.fileUrl}">Download</a>` : 'No File'}</td>
+            <td>
+                <a href="/user/expenses/update/${expense.id}" class="btn btn-primary">Edit</a>
+                <a href="/user/expenses/delete/${expense.id}" class="btn btn-danger">Delete</a>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    document.getElementById('pageDisplay').innerText = `Page ${currentPage}`;
+}
+
+// Filter function
+function filterExpenses() {
+    const searchInput = document.getElementById('searchInput').value.toLowerCase();
+    const categoryFilter = document.getElementById('categoryFilter').value;
+
+    // Debugging: Log the values to ensure they match what we expect
+    console.log("Search Input:", searchInput);
+    console.log("Category Filter:", categoryFilter);
+    console.log(expenses);
+
+    // Filter logic
+    filteredExpenses = expenses.filter(expense => {
+        const matchesDescription = expense.description.toLowerCase().includes(searchInput);
+        
+        // Debugging: Check each expense's category
+        console.log("Expense Category:", expense.category.categoryName);
+        
+        const matchesCategory = categoryFilter === '' || expense.category.categoryName === categoryFilter;
+        
+        return matchesDescription && matchesCategory;
+    });
+
+    currentPage = 1; // Reset to the first page after filtering
+    displayExpenses();
+}
+
+
+
+// Sort function
+function sortExpenses() {
+    const sortField = document.getElementById('sortField').value;
+    const sortDirection = document.getElementById('sortDirection').value;
+
+    filteredExpenses.sort((a, b) => {
+        const aField = a[sortField];
+        const bField = b[sortField];
+
+        if (typeof aField === 'string' && typeof bField === 'string') {
+            return sortDirection === 'asc' ? aField.localeCompare(bField) : bField.localeCompare(aField);
+        } else {
+            return sortDirection === 'asc' ? aField - bField : bField - aField;
+        }
+    });
+
+    displayExpenses();
+}
+
+// Pagination functions
+function previousPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        displayExpenses();
+    }
+}
+
+function nextPage() {
+    if (currentPage * itemsPerPage < filteredExpenses.length) {
+        currentPage++;
+        displayExpenses();
+    }
+}
+
+// Initial fetch on page load
+fetchExpenses();
+
+</script>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.2/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

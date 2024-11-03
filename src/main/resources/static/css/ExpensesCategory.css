@@ -1,0 +1,99 @@
+/* Centering the form container both horizontally and vertically */
+body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: #f4f4f9; /* Light background to contrast with the form */
+}
+
+/* Container styling for card-like appearance */
+.container {
+    max-width: 500px;
+    width: 100%;
+    padding: 30px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
+    z-index: 10; /* Ensuring the card appears on top */
+    position: relative; /* Needed to apply z-index */
+}
+
+/* Form heading styling */
+h1 {
+    font-size: 1.8em;
+    margin-bottom: 20px;
+    color: #333;
+    text-align: center;
+}
+
+/* Styling form labels */
+label {
+    font-size: 1em;
+    color: #333;
+    margin-bottom: 5px;
+    display: block;
+}
+
+/* Styling input fields */
+input[type="text"], select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+/* Styling file upload */
+input[type="file"] {
+    margin-bottom: 15px;
+}
+
+/* Styling buttons */
+.btn {
+    padding: 10px 20px;
+    font-size: 1em;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.btn[type="submit"] {
+    background-color: #007bff;
+    color: #fff;
+}
+
+.btn[type="submit"]:hover {
+    background-color: #0056b3;
+}
+
+.btn.cancel {
+    background-color: #6c757d;
+    color: #fff;
+    margin-left: 10px;
+}
+
+.btn.cancel:hover {
+    background-color: #5a6268;
+}
+
+/* Cancel button styling */
+.cancel-container {
+    display: inline-block;
+    margin-top: 10px;
+}
+
+/* Making sure the card has a slightly elevated look */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1); /* Light overlay background */
+    z-index: 1;
+}

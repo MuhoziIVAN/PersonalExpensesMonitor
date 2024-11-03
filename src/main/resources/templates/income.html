@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Add Income</title>
+    <link rel="stylesheet" href="/css/income.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Add New Income</h1>
+        </header>
+
+        <form action="/dashboard/save-income" method="post">
+            <div class="form-group">
+                <label for="source">Source</label>
+                <input type="text" id="source" name="source" required>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Amount</label>
+                <input type="number" id="amount" name="amount" required>
+            </div>
+
+            <div class="form-group">
+                <label for="category">Category</label>
+                <select id="category" name="category_id" required>
+                    <option value="1">Salary</option>
+                    <option value="2">Business</option>
+                    <option value="3">Investment</option>
+                    <option value="4">Other</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn">Save Income</button>
+        </form>
+    </div>
+</body>
+</html>

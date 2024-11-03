@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Expense Categories</title>
+    <link rel="stylesheet" href="/css/list.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Expense Categories</h1>
+        
+        <!-- Button container for positioning "Add" and "Back Home" -->
+        <div class="button-container">
+            <a href="/user/expenses-categories/new" class="btn">Add New Category</a>
+            <a href="#" th:href="@{/user/dashboard}" class="btn back-home">Back Home</a>
+        </div>
+
+        <table class="styled-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Category Name</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="category : ${categories}">
+                    <td th:text="${category.id}">ID</td>
+                    <td th:text="${category.categoryName}">Category Name</td>
+                    <td th:text="${category.description}">Description</td>
+                    <td>
+                        <a th:href="@{/user/expenses-categories/{id}/edit(id=${category.id})}" class="btn">Edit</a>
+                        <a th:href="@{/user/expenses-categories/{id}/delete(id=${category.id})}" class="btn">Delete</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

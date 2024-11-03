@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Update Expense</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container mt-4">
+    <h2>Update Expense</h2>
+    <form th:action="@{/user/expenses/update/{id}(id=${expense.id})}" th:object="${expense}" method="post">
+        <div class="form-group">
+            <label for="description">Description</label>
+            <input type="text" class="form-control" id="description" th:field="*{description}" required>
+        </div>
+        <div class="form-group">
+            <label for="amount">Amount</label>
+            <input type="number" class="form-control" id="amount" th:field="*{amount}" required>
+        </div>
+        <div class="form-group">
+            <label for="category">Category</label>
+            <select class="form-control" id="category" th:field="*{category}" required>
+                <option th:each="category : ${categories}"
+                        th:value="${category.id}"
+                        th:text="${category.categoryName}"
+                        th:selected="${category.id == expense.category?.id}">
+                </option>
+
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Update Expense</button>
+        <a th:href="@{/user/expenses}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+</body>
+</html>
