@@ -1,24 +1,33 @@
 package auca.rw.PersonalExpensesMonitor.Controller;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.CrossOrigin; // Import your user service
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
 import auca.rw.PersonalExpensesMonitor.Model.ExpensesCategoryTable;
 import auca.rw.PersonalExpensesMonitor.Model.IncomeTable;
 import auca.rw.PersonalExpensesMonitor.Model.UserTable;
 import auca.rw.PersonalExpensesMonitor.Services.ExpensesCategoryService;
 import auca.rw.PersonalExpensesMonitor.Services.IncomeService;
-import auca.rw.PersonalExpensesMonitor.Services.UserService; // Import your user service
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import auca.rw.PersonalExpensesMonitor.Services.UserService;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-
-@Controller
-@RequestMapping("/user/income")
+@RestController
+@RequestMapping("/api/income")
+@CrossOrigin(origins = "http://localhost:3000")
 public class IncomeController {
 
     @Autowired
@@ -30,74 +39,80 @@ public class IncomeController {
     @Autowired
     private UserService userService;
 
-    // Display all expenses for the logged-in user
+     // Get all income for the logged-in user
     @GetMapping
-    public String listIncome(Model model, @AuthenticationPrincipal UserDetails userDetails) {
-        List<ExpensesCategoryTable> categories = expensesCategoryService.findAll();
-        model.addAttribute("categories", categories != null ? categories : new ArrayList<>()); // Adding empty list if null
-        return "income/list"; // Thymeleaf template path
-    }
-
-
-    @GetMapping("/api")
     @ResponseBody
-    public List<IncomeTable> getUserIncome(@AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<List<IncomeTable>> getUserIncome(@AuthenticationPrincipal UserDetails userDetails) {
         UserTable user = userService.findByUsername(userDetails.getUsername());
-        return incomeService.getIncomesByUser(user); // Return as JSON
+        List<IncomeTable> incomes = incomeService.getIncomesByUser(user);
+        return ResponseEntity.ok(incomes);
     }
 
-    // Show form for creating a new expense
-    @GetMapping("/create")
-    public String showCreateForm(Model model) {
-        model.addAttribute("income", new IncomeTable());
-
-        // Fetching expense categories
-        List<ExpensesCategoryTable> categories = expensesCategoryService.findAll(); // Fetch categories
-        model.addAttribute("categories", categories);
-
-        return "income/create"; // Path to your Thymeleaf template
+    // Get all expense categories (for dropdown or selection)
+    @GetMapping("/categories")
+    @ResponseBody
+    public ResponseEntity<List<ExpensesCategoryTable>> getCategories() {
+        List<ExpensesCategoryTable> categories = expensesCategoryService.findAll();
+        return ResponseEntity.ok(categories);
     }
 
-    @PostMapping("/create")
-    public String createExpense(@ModelAttribute("income") IncomeTable income,
-                                @AuthenticationPrincipal UserDetails userDetails) {
+    // Create a new income entry
+    @PostMapping
+    @ResponseBody
+    public ResponseEntity<IncomeTable> createIncome(
+        @RequestBody IncomeTable income, 
+        @AuthenticationPrincipal UserDetails userDetails
+    ) {
         UserTable user = userService.findByUsername(userDetails.getUsername());
         income.setUser(user); 
         income.setCreatedAt(LocalDateTime.now());
+        
 
-        incomeService.createIncome(income);
-        return "redirect:/user/income"; 
+        IncomeTable createdIncome = incomeService.createIncome(income);
+        return ResponseEntity.ok(createdIncome);
     }
 
-
-    // Show form for updating an existing income
-    @GetMapping("/update/{id}")
-    public String showUpdateForm(@PathVariable("id") long id, Model model) {
+    // Get a specific income entry by ID
+    @GetMapping("/{id}")
+    @ResponseBody
+    public ResponseEntity<IncomeTable> getIncomeById(@PathVariable long id) {
         IncomeTable income = incomeService.getIncomeById(id);
         if (income != null) {
-            model.addAttribute("income", income);
-            List<ExpensesCategoryTable> categories = expensesCategoryService.findAll();
-            model.addAttribute("categories", categories);
-            return "income/update"; // Path to your Thymeleaf template
+            return ResponseEntity.ok(income);
         }
-        return "redirect:/user/income"; // Redirect if the expense is not found
+        return ResponseEntity.notFound().build();
     }
 
-    // Handle form submission for updating an existing expense
-    @PostMapping("/update/{id}")
-    public String updateIncome(@PathVariable("id") long id, @ModelAttribute IncomeTable incomeDetails) {
+    // Update an existing income entry
+    @PutMapping("/{id}")
+    @ResponseBody
+    public ResponseEntity<IncomeTable> updateIncome(
+        @PathVariable long id, 
+        @RequestBody IncomeTable incomeDetails
+    ) {
+        IncomeTable existingIncome = incomeService.getIncomeById(id);
+        if (existingIncome == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        existingIncome.setSource(incomeDetails.getSource());
+        existingIncome.setAmount(incomeDetails.getAmount());
+        existingIncome.setCategory(incomeDetails.getCategory());
+
+        IncomeTable updatedIncome = incomeService.updateIncome(id, existingIncome);
+        return ResponseEntity.ok(updatedIncome);
+    }
+
+    // Delete an income entry
+    @DeleteMapping("/{id}")
+    @ResponseBody
+    public ResponseEntity<Void> deleteIncome(@PathVariable long id) {
         IncomeTable income = incomeService.getIncomeById(id);
-        income.setSource(incomeDetails.getSource());
-        income.setAmount(incomeDetails.getAmount());
-        income.setCategory(incomeDetails.getCategory());
-        incomeService.updateIncome(id, income);
-        return "redirect:/user/income"; 
-    }
-
-    // Handle deletion of an expense
-    @GetMapping("/delete/{id}")
-    public String deleteIncome(@PathVariable("id") long id) {
+        if (income == null) {
+            return ResponseEntity.notFound().build();
+        }
+        
         incomeService.deleteIncome(id);
-        return "redirect:/user/income"; 
+        return ResponseEntity.ok().build();
     }
 }

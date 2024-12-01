@@ -1,6 +1,6 @@
 package auca.rw.PersonalExpensesMonitor.Security;
 
-import java.io.IOException;
+import java.util.Arrays;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,16 +10,15 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.stereotype.Component;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import auca.rw.PersonalExpensesMonitor.Services.CustomUserDetailsService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
@@ -34,12 +33,16 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
         return http
-                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(AbstractHttpConfigurer::disable)  // Be careful with this in production
                 .authorizeHttpRequests(req -> req
-                        .requestMatchers("/", "/signup", "/login", "/css/**", "/js/**", "/images/**", "/forgot-password", "/reset-password", "/uploads/**","/static/**","/assets/**")
+                        .requestMatchers("/api/auth/**", "/api/signup", "/login", "/signup", 
+                                       "/css/**", "/js/**", "/images/**", 
+                                       "/forgot-password", "/reset-password", 
+                                       "/uploads/**", "/static/**", "/assets/**")
                         .permitAll()
+                        .requestMatchers("/dashboard/**").authenticated()
                         .requestMatchers("/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
                         .requestMatchers("/user/**").hasAnyAuthority("ROLE_USER", "USER")
                         .anyRequest()
@@ -47,32 +50,50 @@ public class SecurityConfig {
                 )
                 .userDetailsService(userDetailsServiceImp)
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.ALWAYS))
+                    .sessionCreationPolicy(SessionCreationPolicy.ALWAYS))
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint(new CustomAuthenticationEntryPoint()) // Custom entry point for 401
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            response.sendRedirect(request.getContextPath() + "/403"); // Redirect to the custom 403 page
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"error\":\"" + authException.getMessage() + "\"}");
+                        })
+                )
+                .formLogin(form -> form
+                        .loginProcessingUrl("/api/auth/login")
+                        .successHandler((request, response, authentication) -> {
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"success\":true}");
+                        })
+                        .failureHandler((request, response, exception) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"error\":\"" + exception.getMessage() + "\"}");
                         })
                 )
                 .logout(l -> l
-                    .logoutUrl("/logout")
-                    .logoutSuccessHandler((request, response, authentication) -> {
-                        SecurityContextHolder.clearContext();
-                        response.sendRedirect("/login"); // Ensure redirection to login
-                    })
-                    .invalidateHttpSession(true)
-                    .deleteCookies("JSESSIONID")
+                        .logoutUrl("/api/auth/logout")
+                        .logoutSuccessHandler((request, response, authentication) -> {
+                            SecurityContextHolder.clearContext();
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"success\":true}");
+                        })
+                        .invalidateHttpSession(true)
+                        .deleteCookies("JSESSIONID")
                 )
                 .build();
     }
 
-    @Component
-    public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
-        @Override
-        public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException {
-            // Redirect to the login page if the request is not authenticated
-            response.sendRedirect(request.getContextPath() + "/login?error=unauthorized"); // Optionally add a query parameter to indicate the error
-        }
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000")); // Your React app URL
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean

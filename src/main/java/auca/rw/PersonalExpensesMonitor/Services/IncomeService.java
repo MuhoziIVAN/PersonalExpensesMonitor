@@ -14,6 +14,9 @@ public class IncomeService {
     @Autowired
     private IncomeRepository incomeRepository;
 
+    public List<IncomeTable> getAllIncomes() {
+        return incomeRepository.findAll();
+    }
     public List<IncomeTable> getIncomesByUser(UserTable user) {
         return incomeRepository.findByUser(user);
     }

@@ -1,24 +1,31 @@
 package auca.rw.PersonalExpensesMonitor.Controller;
 
-import auca.rw.PersonalExpensesMonitor.Model.UserTable;
-import auca.rw.PersonalExpensesMonitor.Services.CustomUserDetailsService;
-import auca.rw.PersonalExpensesMonitor.Services.UserService;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
+import auca.rw.PersonalExpensesMonitor.Model.UserTable;
+import auca.rw.PersonalExpensesMonitor.Services.CustomUserDetailsService;
+import auca.rw.PersonalExpensesMonitor.Services.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+
+@CrossOrigin(origins = "http://localhost:3000")
 @Controller
 public class AuthController {
 
@@ -48,38 +55,59 @@ public class AuthController {
     }
 
     // Handle signup submission
-    @PostMapping("/signup")
-    public String registerUser(@ModelAttribute UserTable user, @RequestParam String confirmpassword, Model model) {
-        // Check if password and confirmation match
-        if (!user.getPassword().equals(confirmpassword)) {
-            model.addAttribute("errorMessage", "Passwords do not match.");
-            return "signup";
-        }
+   @PostMapping("/signup")
+public ResponseEntity<?> registerUser(@RequestBody Map<String, String> requestBody) {
+    String firstName = requestBody.get("firstName");
+    String lastName = requestBody.get("lastName");
+    String email = requestBody.get("email");
+    String username = requestBody.get("username");
+    String dateOfBirth = requestBody.get("dateOfBirth");
+    String gender = requestBody.get("gender");
+    String phone = requestBody.get("phone");
+    String password = requestBody.get("password");
+    String confirmPassword = requestBody.get("confirmPassword");
 
-        // Check for uniqueness
-        if (userService.isEmailExists(user.getEmail())) {
-            model.addAttribute("errorMessage", "Email already exists.");
-            return "signup";
-        }
-        if (userService.isPhoneExists(user.getPhone())) {
-            model.addAttribute("errorMessage", "Phone number already exists.");
-            return "signup";
-        }
-        if (userService.isUsernameExists(user.getUsername())) {
-            model.addAttribute("errorMessage", "Username already exists.");
-            return "signup";
-        }
-
-        try {
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
-            userService.registerUser(user);
-            model.addAttribute("successMessage", "User registered successfully");
-            return "redirect:/login"; // Redirect to login page after successful signup
-        } catch (Exception e) {
-            model.addAttribute("errorMessage", e.getMessage());
-            return "signup";
-        }
+    // Validate passwords match
+    if (!password.equals(confirmPassword)) {
+        return ResponseEntity.badRequest().body("Passwords do not match.");
     }
+
+    // Check for uniqueness
+    if (userService.isEmailExists(email)) {
+        return ResponseEntity.badRequest().body("Email already exists.");
+    }
+    if (userService.isPhoneExists(phone)) {
+        return ResponseEntity.badRequest().body("Phone number already exists.");
+    }
+    if (userService.isUsernameExists(username)) {
+        return ResponseEntity.badRequest().body("Username already exists.");
+    }
+
+      LocalDate dob;
+    try {
+        dob = LocalDate.parse(dateOfBirth); // Parse the String into LocalDate
+    } catch (DateTimeParseException e) {
+        return ResponseEntity.badRequest().body("Invalid date format. Please use YYYY-MM-DD.");
+    }
+
+    try {
+        // Create and register user
+        UserTable user = new UserTable();
+        user.setFirstName(firstName);
+        user.setLastName(lastName);
+        user.setEmail(email);
+        user.setUsername(username);
+        user.setDob(dob);
+        user.setGender(gender);
+        user.setPhone(phone);
+        user.setPassword(passwordEncoder.encode(password));
+
+        userService.registerUser(user);
+        return ResponseEntity.ok("User registered successfully");
+    } catch (Exception e) {
+        return ResponseEntity.status(500).body("An error occurred: " + e.getMessage());
+    }
+}
 
 
     @GetMapping("/login")
@@ -91,8 +119,10 @@ public class AuthController {
 
 
 @PostMapping("/login")
-public String loginUser(@RequestParam String username, @RequestParam String password, 
-                        HttpServletRequest request, RedirectAttributes redirectAttributes) {
+public ResponseEntity<?> loginUser(@RequestBody Map<String, String> requestBody, HttpServletRequest request) {
+    String username = requestBody.get("username");
+    String password = requestBody.get("password");
+
     try {
         Authentication authentication = authenticationManager.authenticate(
             new UsernamePasswordAuthenticationToken(username, password)
@@ -102,18 +132,17 @@ public String loginUser(@RequestParam String username, @RequestParam String pass
         // Explicitly set SecurityContextHolder in session
         request.getSession().setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
 
-        redirectAttributes.addFlashAttribute("successMessage", "Login successful!");
+        String redirectUrl = authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"))
+                ? "/admin/dashboard"
+                : "/dashboard";
 
-        if (authentication.getAuthorities().stream().anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"))) {
-            return "redirect:/admin/dashboard";
-        } else {
-            return "redirect:/user/dashboard";
-        }
+        return ResponseEntity.ok(Map.of("message", "Login successful!", "redirectUrl", redirectUrl));
     } catch (Exception e) {
-        redirectAttributes.addFlashAttribute("errorMessage", "Invalid username or password");
-        return "redirect:/login";
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
     }
 }
+
 
 
 
@@ -124,15 +153,15 @@ public String loginUser(@RequestParam String username, @RequestParam String pass
     }
 
     @PostMapping("/forgot-password")
-    public String requestPasswordReset(@RequestParam String email, Model model) {
-        try {
-            userService.initiatePasswordReset(email);
-            model.addAttribute("successMessage", "Password reset email sent successfully");
-        } catch (Exception e) {
-            model.addAttribute("errorMessage", e.getMessage());
-        }
-        return "reset-password-request";
+    public ResponseEntity<?> requestPasswordReset(@RequestBody Map<String, String> requestBody) {
+    String email = requestBody.get("email");
+    try {
+        userService.initiatePasswordReset(email);
+        return ResponseEntity.ok("Password reset email sent successfully");
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
+}
 
     @GetMapping("/reset-password")
     public String showResetPasswordForm(@RequestParam("token") String token, Model model) {
@@ -141,16 +170,27 @@ public String loginUser(@RequestParam String username, @RequestParam String pass
     }
 
     @PostMapping("/reset-password")
-    public String resetPassword(@RequestParam String token, @RequestParam String newPassword, Model model) {
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> requestBody) {
+        String token = requestBody.get("token");
+        String newPassword = requestBody.get("newPassword");
+        
         try {
             userService.resetPassword(token, newPassword);
-            model.addAttribute("successMessage", "Password reset successful");
-            return "redirect:/login"; // Redirect to login after successful reset
+            return ResponseEntity.ok("Password reset successful");
         } catch (Exception e) {
-            model.addAttribute("errorMessage", e.getMessage());
-            model.addAttribute("token", token);
-            return "reset-password"; // Return to reset password view
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletRequest request) {
+    try {
+        // Invalidate the session to log out the user
+        request.getSession().invalidate();
+        return ResponseEntity.ok("Logout successful");
+    } catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred during logout");
+    }
+}
 
 }

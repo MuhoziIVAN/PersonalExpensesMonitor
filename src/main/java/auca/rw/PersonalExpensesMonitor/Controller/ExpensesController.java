@@ -1,134 +1,180 @@
 package auca.rw.PersonalExpensesMonitor.Controller;
 
-import auca.rw.PersonalExpensesMonitor.Model.ExpensesCategoryTable;
-import auca.rw.PersonalExpensesMonitor.Model.ExpensesTable;
-import auca.rw.PersonalExpensesMonitor.Model.UserTable;
-import auca.rw.PersonalExpensesMonitor.Services.ExpensesCategoryService;
-import auca.rw.PersonalExpensesMonitor.Services.ExpensesService;
-import auca.rw.PersonalExpensesMonitor.Services.UserService; // Import your user service
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.sql.Date;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.List;
 
-@Controller
-@RequestMapping("/user/expenses")
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails; // Import your user service
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import auca.rw.PersonalExpensesMonitor.Model.ExpensesCategoryTable;
+import auca.rw.PersonalExpensesMonitor.Model.ExpensesTable;
+import auca.rw.PersonalExpensesMonitor.Model.UserTable;
+import auca.rw.PersonalExpensesMonitor.Services.ExpensesCategoryService;
+import auca.rw.PersonalExpensesMonitor.Services.ExpensesService;
+import auca.rw.PersonalExpensesMonitor.Services.UserService;
+
+@RestController
+@RequestMapping("/api/expenses")
+@CrossOrigin(origins = "http://localhost:3000")
 public class ExpensesController {
 
     @Autowired
     private ExpensesService expensesService;
 
     @Autowired
-    private ExpensesCategoryService expensesCategoryService; // Service to fetch expense categories
+    private ExpensesCategoryService expensesCategoryService;
 
     @Autowired
     private UserService userService; 
     
     private final String UPLOAD_DIRECTORY = "uploads/";
 
-    // Display all expenses for the logged-in user
+    // Fetch user expenses
     @GetMapping
-    public String listExpenses(Model model, @AuthenticationPrincipal UserDetails userDetails) {
-        List<ExpensesCategoryTable> categories = expensesCategoryService.findAll();
-        model.addAttribute("categories", categories != null ? categories : new ArrayList<>()); // Adding empty list if null
-        return "expenses/list"; // Thymeleaf template path
-    }
-
-
-    @GetMapping("/api")
     @ResponseBody
     public List<ExpensesTable> getUserExpenses(@AuthenticationPrincipal UserDetails userDetails) {
         UserTable user = userService.findByUsername(userDetails.getUsername());
-        return expensesService.getExpensesByUser(user); // Return as JSON
+        return expensesService.getExpensesByUser(user);
     }
 
-    // Show form for creating a new expense
-    @GetMapping("/create")
-    public String showCreateForm(Model model) {
-        model.addAttribute("expense", new ExpensesTable());
+    // Create expense
+   @PostMapping(value = "/create", consumes = {"multipart/form-data"})
+    @ResponseBody
+    public ResponseEntity<ExpensesTable> createExpenseWithFile(
+        @RequestPart("expense") ExpensesTable expense,
+        @RequestPart(value = "file", required = false) MultipartFile file,
+        @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        try {
+            UserTable user = userService.findByUsername(userDetails.getUsername());
+            expense.setUser(user); 
+            expense.setCreatedAt(LocalDateTime.now());
 
-    // Fetching expense categories
-    List<ExpensesCategoryTable> categories = expensesCategoryService.findAll(); // Fetch categories
-    model.addAttribute("categories", categories);
+            // Handle file upload
+            if (file != null && !file.isEmpty()) {
+                // Create the directory if it doesn't exist
+                File directory = new File(UPLOAD_DIRECTORY);
+                if (!directory.exists()) {
+                    directory.mkdirs(); // Use mkdirs() to create parent directories if needed
+                }
 
-        return "expenses/create"; // Path to your Thymeleaf template
+                // Generate a unique filename to prevent overwriting
+                String uniqueFileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+                Path filePath = Paths.get(UPLOAD_DIRECTORY + uniqueFileName);
+                
+                try {
+                    Files.write(filePath, file.getBytes());
+                    expense.setFileUrl(filePath.toString());
+                } catch (IOException e) {
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(null);
+                }
+            }
+
+            ExpensesTable createdExpense = expensesService.createExpense(expense);
+            return ResponseEntity.ok(createdExpense);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(null);
+        }
     }
 
-    @PostMapping("/create")
-public String createExpense(@ModelAttribute("expense") ExpensesTable expense,
-                             @RequestParam(value = "file", required = false) MultipartFile file, 
-                             @AuthenticationPrincipal UserDetails userDetails) {
-    UserTable user = userService.findByUsername(userDetails.getUsername());
-    expense.setUser(user); 
-    expense.setCreatedAt(LocalDateTime.now());
-
-    // Save the file to the specified directory if it's not empty
-    if (file != null && !file.isEmpty()) {
+    @PostMapping("/upload")
+    @ResponseBody
+    public ResponseEntity<String> uploadFile(
+        @RequestParam("file") MultipartFile file,
+        @AuthenticationPrincipal UserDetails userDetails
+    ) {
         try {
             // Create the directory if it doesn't exist
             File directory = new File(UPLOAD_DIRECTORY);
             if (!directory.exists()) {
-                directory.mkdir();
+                directory.mkdirs();
             }
 
-            // Save the file to the specified path
-            String filePath = UPLOAD_DIRECTORY + file.getOriginalFilename();
-            Path path = Paths.get(filePath);
-            Files.write(path, file.getBytes());
-            expense.setFileUrl(filePath); // Ensure ExpensesTable has a field for file URL
+            // Generate a unique filename
+            String uniqueFileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            Path filePath = Paths.get(UPLOAD_DIRECTORY + uniqueFileName);
+            
+            // Write file
+            Files.write(filePath, file.getBytes());
+
+            return ResponseEntity.ok(filePath.toString());
         } catch (IOException e) {
-            e.printStackTrace();
-            // Handle error (e.g., show an error message to the user)
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("File upload failed");
         }
     }
 
-    expensesService.createExpense(expense);
-    return "redirect:/user/expenses"; // Redirect to the list of expenses after creation
-}
-
-
-    // Show form for updating an existing expense
-    @GetMapping("/update/{id}")
-    public String showUpdateForm(@PathVariable("id") long id, Model model) {
+    // Get expense by ID
+    @GetMapping("/{id}")
+    @ResponseBody
+    public ResponseEntity<ExpensesTable> getExpenseById(@PathVariable long id) {
         ExpensesTable expense = expensesService.getExpenseById(id);
         if (expense != null) {
-            model.addAttribute("expense", expense);
-            List<ExpensesCategoryTable> categories = expensesCategoryService.findAll();
-            model.addAttribute("categories", categories);
-            return "expenses/update"; // Path to your Thymeleaf template
+            return ResponseEntity.ok(expense);
         }
-        return "redirect:/user/expenses"; // Redirect if the expense is not found
+        return ResponseEntity.notFound().build();
     }
 
-    // Handle form submission for updating an existing expense
-    @PostMapping("/update/{id}")
-    public String updateExpense(@PathVariable("id") long id, @ModelAttribute ExpensesTable expenseDetails) {
+    // Update expense
+    @PutMapping("/{id}")
+    @ResponseBody
+    public ResponseEntity<ExpensesTable> updateExpense(
+        @PathVariable long id, 
+        @RequestBody ExpensesTable expenseDetails
+    ) {
+        ExpensesTable existingExpense = expensesService.getExpenseById(id);
+        if (existingExpense == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        existingExpense.setDescription(expenseDetails.getDescription());
+        existingExpense.setAmount(expenseDetails.getAmount());
+        existingExpense.setCategory(expenseDetails.getCategory());
+
+        ExpensesTable updatedExpense = expensesService.updateExpense(id, existingExpense);
+        return ResponseEntity.ok(updatedExpense);
+    }
+
+    // Delete expense
+    @DeleteMapping("/{id}")
+    @ResponseBody
+    public ResponseEntity<Void> deleteExpense(@PathVariable long id) {
         ExpensesTable expense = expensesService.getExpenseById(id);
-        expense.setDescription(expenseDetails.getDescription());
-        expense.setAmount(expenseDetails.getAmount());
-        expense.setCategory(expenseDetails.getCategory());
-        expensesService.updateExpense(id, expense);
-        return "redirect:/user/expenses"; // Redirect to the expenses list
+        if (expense == null) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        expensesService.deleteExpense(id);
+        return ResponseEntity.ok().build();
     }
 
-    // Handle deletion of an expense
-    @GetMapping("/delete/{id}")
-    public String deleteExpense(@PathVariable("id") long id) {
-        expensesService.deleteExpense(id);
-        return "redirect:/user/expenses"; // Redirect to the expenses list
+    // Fetch expense categories
+    @GetMapping("/categories")
+    @ResponseBody
+    public List<ExpensesCategoryTable> getExpenseCategories() {
+        return expensesCategoryService.findAll();
     }
 }

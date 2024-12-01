@@ -1,57 +1,59 @@
 package auca.rw.PersonalExpensesMonitor.Controller;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
 import auca.rw.PersonalExpensesMonitor.Model.ExpensesCategoryTable;
 import auca.rw.PersonalExpensesMonitor.Services.ExpensesCategoryService;
 
-import java.util.List;
-
-@Controller
-@RequestMapping("/user/expenses-categories")
+@RestController
+@RequestMapping("/api/expenses-categories")  // Changed to /api endpoint
+@CrossOrigin(origins = "http://localhost:3000")
 public class ExpensesCategoryController {
 
     @Autowired
     private ExpensesCategoryService service;
 
     @GetMapping
-    public String listCategories(Model model) {
+    @ResponseBody
+    public ResponseEntity<List<ExpensesCategoryTable>> listCategories() {
         List<ExpensesCategoryTable> categories = service.findAll();
-        model.addAttribute("categories", categories);
-        return "expenses-categories/list";
-    }
-
-    @GetMapping("/new")
-    public String showCreateForm(Model model) {
-        model.addAttribute("category", new ExpensesCategoryTable());
-        return "expenses-categories/form";
+        return ResponseEntity.ok(categories);
     }
 
     @PostMapping
-    public String createCategory(@ModelAttribute ExpensesCategoryTable category) {
-        service.save(category);
-        return "redirect:/user/expenses-categories";
+    @ResponseBody
+    public ResponseEntity<ExpensesCategoryTable> createCategory(@RequestBody ExpensesCategoryTable category) {
+        ExpensesCategoryTable savedCategory = service.save(category);
+        return ResponseEntity.ok(savedCategory);
     }
 
-    @GetMapping("/{id}/edit")
-    public String showEditForm(@PathVariable Long id, Model model) {
-        ExpensesCategoryTable category = service.findById(id);
-        model.addAttribute("category", category);
-        return "expenses-categories/form";
-    }
-
-    @PostMapping("/{id}")
-    public String updateCategory(@PathVariable Long id, @ModelAttribute ExpensesCategoryTable category) {
+    @PutMapping("/{id}")
+    @ResponseBody
+    public ResponseEntity<ExpensesCategoryTable> updateCategory(
+        @PathVariable Long id, 
+        @RequestBody ExpensesCategoryTable category) {
         category.setId(id);
-        service.save(category);
-        return "redirect:/user/expenses-categories";
+        ExpensesCategoryTable updatedCategory = service.save(category);
+        return ResponseEntity.ok(updatedCategory);
     }
 
-    @GetMapping("/{id}/delete")
-    public String deleteCategory(@PathVariable Long id) {
+    @DeleteMapping("/{id}")
+    @ResponseBody
+    public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
         service.deleteById(id);
-        return "redirect:/user/expenses-categories";
+        return ResponseEntity.ok().build();
     }
 }
